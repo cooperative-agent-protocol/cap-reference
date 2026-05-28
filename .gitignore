@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 CAP Authors
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# TypeScript / Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# C++ build
+build/
+cmake-build-*/
+CMakeUserPresets.json
+Testing/
+
+# Conan
+.conan2/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp

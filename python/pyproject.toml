@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cap-sdk"
+version = "0.1.0"
+description = "Python SDK for the Cooperative Agent Protocol (CAP) — Core + Construction Domain Pack v0"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [
+    { name = "CAP Authors" },
+]
+keywords = ["cooperative-agent", "construction", "agriculture", "robotics", "protocol", "grpc", "multi-agent", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    # gRPC pinned to match the matrix in CAP CI (ADR-008 versioning policy).
+    "grpcio>=1.70.0",
+    # protobuf>=7.35 required by the BSR-generated proto bindings (gencode
+    # 7.35.0). Lowering this pin breaks `from cap.v0.core import *_pb2`.
+    "protobuf>=7.35.0",
+    "cryptography>=42.0",
+]
+
+[project.optional-dependencies]
+# codegen extras are kept compatible with protobuf 7.35+ (grpcio-tools
+# 1.81rc+ is required; pre-releases must be enabled with
+# `uv sync --prerelease=allow` until 1.81 stable lands).
+codegen = ["grpcio-tools>=1.81.0rc1"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[project.urls]
+Repository = "https://github.com/R-Okauchi/cap"
+Documentation = "https://github.com/R-Okauchi/cap/tree/main/cap-spec/docs/specification"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = [
+    "../../cap-spec/gen/python",
+    ".",
+]

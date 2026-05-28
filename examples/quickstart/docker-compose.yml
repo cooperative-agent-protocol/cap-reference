@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 CAP Authors
+#
+# CAP quickstart — clone-and-run in five minutes.
+#
+# Spins up:
+#   - a CAP runtime servicer (reference, in cap-reference/python)
+#   - two fake construction Machine Agents (excavator + dump truck)
+#   - an MQTT broker (for the MQTT transport demo)
+#
+# This compose file deliberately has NO dependency on cap-platform — it
+# mounts only cap-spec/gen (generated proto) and cap-reference/python
+# (the reference SDK). It demonstrates a self-contained Construction
+# Domain Pack deployment.
+#
+# Usage:
+#   docker-compose up
+#
+# Then watch the logs: the runtime accepts manifests, the agents emit
+# heartbeats, and (if you run the dispatcher) a WorkOrder flows through.
+
+services:
+  # ─── Reference CAP runtime (gRPC servicer) ─────────────────────────
+  runtime:
+    image: python:3.12-slim
+    working_dir: /app
+    environment:
+      PYTHONPATH: "/spec/gen/python:/sdk"
+      CAP_BIND: "[::]:50051"
+    volumes:
+      - ../../../cap-spec/gen/python:/spec/gen/python:ro
+      - ../../python:/sdk:ro
+      - ./:/quickstart:ro
+    command: >
+      sh -c "pip install --quiet grpcio 'protobuf>=7.35' cryptography &&
+             python -m cap_sdk.server"
+    ports:
+      - "50051:50051"
+
+  # ─── Fake excavator Machine Agent ──────────────────────────────────
+  excavator:
+    image: python:3.12-slim
+    working_dir: /quickstart
+    depends_on: [runtime]
+    environment:
+      PYTHONPATH: "/spec/gen/python:/sdk"
+      CAP_SERVER: "runtime:50051"
+      CAP_MACHINE_ID: "zx120-01"
+    volumes:
+      - ../../../cap-spec/gen/python:/spec/gen/python:ro
+      - ../../python:/sdk:ro
+      - ./:/quickstart:ro
+    command: >
+      sh -c "pip install --quiet grpcio 'protobuf>=7.35' cryptography &&
+             sleep 3 &&
+             python run_fake_excavator.py"
+
+  # ─── Fake dump truck Machine Agent ─────────────────────────────────
+  dump_truck:
+    image: python:3.12-slim
+    working_dir: /quickstart
+    depends_on: [runtime]
+    environment:
+      PYTHONPATH: "/spec/gen/python:/sdk"
+      CAP_SERVER: "runtime:50051"
+      CAP_MACHINE_ID: "ic120-01"
+    volumes:
+      - ../../../cap-spec/gen/python:/spec/gen/python:ro
+      - ../../python:/sdk:ro
+      - ./:/quickstart:ro
+    command: >
+      sh -c "pip install --quiet grpcio 'protobuf>=7.35' cryptography &&
+             sleep 3 &&
+             python run_fake_excavator.py"
+
+  # ─── MQTT broker (optional transport demo) ─────────────────────────
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ../../mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro

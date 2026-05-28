@@ -1,0 +1,18 @@
+CAP Reference Implementation
+Copyright 2026 CAP Authors
+
+This product includes software developed by the CAP project
+(https://cap-protocol.dev — pending public release).
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository contains the reference SDK (Python, C++, TypeScript)
+and example agents for the Cooperative Agent Protocol (CAP).
+
+Third-party components:
+- Google Protocol Buffers — separate license (see protobuf upstream).
+- gRPC — Apache License 2.0 (separate copyright).
+- Eclipse Mosquitto config (when MQTT transport is used) — EPL 2.0 / EDL 1.0
+  (broker not redistributed; only configuration is included).
+
+Trademarks: see the cap-spec repository's TRADEMARK_POLICY.md.
