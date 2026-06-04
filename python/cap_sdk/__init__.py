@@ -14,7 +14,7 @@ from types import ModuleType
 
 __version__ = "0.1.0"
 
-_EXPORTED_SUBMODULES = frozenset({"frame", "security", "validator"})
+_EXPORTED_SUBMODULES = frozenset({"frame", "security", "skill_invocation", "validator"})
 
 
 def __getattr__(name: str) -> ModuleType:
@@ -28,4 +28,4 @@ def __getattr__(name: str) -> ModuleType:
     return module
 
 
-__all__ = ["frame", "security", "validator"]
+__all__ = ["frame", "security", "skill_invocation", "validator"]
