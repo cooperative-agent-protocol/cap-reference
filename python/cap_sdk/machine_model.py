@@ -89,18 +89,18 @@ class MachineModelInterface(ABC):
     ) -> str:
         """Generate natural language description of machine state for heartbeat.
 
-        This is used to populate Heartbeat.alo_state_summary.
+        This is used to populate Heartbeat.entity_state_summary.
         """
         ...
 
     @abstractmethod
-    async def generate_alo_descriptor(
+    async def generate_entity_descriptor(
         self,
         machine_info: dict[str, Any],
     ) -> dict[str, Any]:
-        """Generate an ALODescriptor for a machine using ALO methodology.
+        """Generate an EntityDescriptor for a machine using Entity Descriptor methodology.
 
-        Implements ALO paper (Ochiai et al., 2304.04498) Steps 1-4:
+        Implements Entity Descriptor paper (Ochiai et al., 2304.04498) Steps 1-4:
           Step 1: Define mainObj with subObjList
           Step 2: Add skills and knowledge to subObjList
           Step 3: Set specific states for subObjList
@@ -111,10 +111,10 @@ class MachineModelInterface(ABC):
                           capabilities (list of {skill, limits}), sensors, etc.
 
         Returns:
-            Dict matching ALODescriptor proto structure:
+            Dict matching EntityDescriptor proto structure:
             {
-                "alo_id": str,
-                "alo_type": "machine",
+                "entity_id": str,
+                "entity_type": "machine",
                 "canonical_name": str,
                 "properties": [{"key": str, "value": str, "unit": str, "dtype": str}],
                 "sub_objects": [{"sub_obj_id": str, "sub_obj_type": str, "description": str, "properties": [...]}],
@@ -122,7 +122,7 @@ class MachineModelInterface(ABC):
                 "manager": {
                     "available_skills": [str],
                     "interaction_rules": [str],
-                    "relations": [{"relation_type": str, "target_alo_id": str, "description": str}]
+                    "relations": [{"relation_type": str, "target_entity_id": str, "description": str}]
                 }
             }
         """
@@ -137,9 +137,9 @@ class MachineModelInterface(ABC):
         machine_state: dict[str, Any],
         task_context: dict[str, Any],
     ) -> dict[str, Any]:
-        """Dynamically update ALOManager based on current state and task.
+        """Dynamically update EntityManager based on current state and task.
 
-        Implements ALO paper Steps 5-8:
+        Implements Entity Descriptor paper Steps 5-8:
           Step 5: Validate current state meets conditions
           Step 6: Update subObjList for state detection
           Step 7: Update managerObj state using skills and knowledge
@@ -158,12 +158,12 @@ class MachineModelInterface(ABC):
     @abstractmethod
     async def validate_state(
         self,
-        alo_descriptor: dict[str, Any],
+        entity_descriptor: dict[str, Any],
         machine_state: dict[str, Any],
     ) -> dict[str, Any]:
-        """Validate that ALO state is consistent and detect anomalies.
+        """Validate that Entity Descriptor state is consistent and detect anomalies.
 
-        Implements ALO paper Step 5: Validate initial state meets conditions.
+        Implements Entity Descriptor paper Step 5: Validate initial state meets conditions.
 
         Returns:
             Dict with validation result:
@@ -237,24 +237,24 @@ class MachineModelInterface(ABC):
             *lines[-5:],
         ])
 
-    # --- Phase 3: ALO Interaction (Paper Steps 9-10) ---
+    # --- Phase 3: Entity Descriptor Interaction (Paper Steps 9-10) ---
 
     @abstractmethod
     async def simulate_interaction(
         self,
-        self_alo: dict[str, Any],
-        target_alo: dict[str, Any],
+        self_entity: dict[str, Any],
+        target_entity: dict[str, Any],
         task_context: dict[str, Any],
     ) -> dict[str, Any]:
-        """Simulate interaction between two ALOs using LLM.
+        """Simulate interaction between two Entity Descriptors using LLM.
 
-        Implements ALO paper Steps 9-10:
-          Step 9: "ALOs(A) meets ALOs(B)" — predict interaction outcome
+        Implements Entity Descriptor paper Steps 9-10:
+          Step 9: "Entity Descriptors(A) meets Entity Descriptors(B)" — predict interaction outcome
           Step 10: Generate execution steps (stepObjList)
 
         Args:
-            self_alo: This machine's ALO descriptor dict
-            target_alo: Target ALO descriptor dict (zone, material, other machine)
+            self_entity: This machine's Entity Descriptor descriptor dict
+            target_entity: Target Entity Descriptor descriptor dict (zone, material, other machine)
             task_context: Current task parameters
 
         Returns:
@@ -262,7 +262,7 @@ class MachineModelInterface(ABC):
             {
                 "interaction_type": str,      # e.g. "excavate", "load", "haul"
                 "predicted_outcome": str,     # Natural language prediction
-                "expected_state_changes": [{"alo_id": str, "property": str, "from": str, "to": str}],
+                "expected_state_changes": [{"entity_id": str, "property": str, "from": str, "to": str}],
                 "step_list": [str],           # Ordered execution steps (stepObjList)
                 "confidence": float,
             }

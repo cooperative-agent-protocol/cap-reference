@@ -77,7 +77,7 @@ class TestFakeMachineModel:
         assert len(desc) > 0
 
     @pytest.mark.asyncio()
-    async def test_generate_alo_descriptor(self, model):
+    async def test_generate_entity_descriptor(self, model):
         info = {
             "machine_id": "exc-01",
             "machine_type": "MACHINE_TYPE_EXCAVATOR",
@@ -85,7 +85,7 @@ class TestFakeMachineModel:
                 {"skill": "construction.excavate_batch", "limits": [{"key": "bucket_capacity_m3", "value": "0.8"}]},
             ],
         }
-        result = await model.generate_alo_descriptor(info)
+        result = await model.generate_entity_descriptor(info)
         assert isinstance(result, dict)
 
     @pytest.mark.asyncio()
@@ -99,7 +99,7 @@ class TestFakeMachineModel:
     @pytest.mark.asyncio()
     async def test_validate_state(self, model):
         result = await model.validate_state(
-            alo_descriptor={"alo_id": "exc-01"},
+            entity_descriptor={"entity_id": "exc-01"},
             machine_state={"fuel_percent": 80},
         )
         assert isinstance(result, dict)
@@ -108,8 +108,8 @@ class TestFakeMachineModel:
     @pytest.mark.asyncio()
     async def test_simulate_interaction(self, model):
         result = await model.simulate_interaction(
-            self_alo={"alo_id": "exc-01"},
-            target_alo={"alo_id": "zone-A"},
+            self_entity={"entity_id": "exc-01"},
+            target_entity={"entity_id": "zone-A"},
             task_context={"skill": "excavate"},
         )
         assert isinstance(result, dict)

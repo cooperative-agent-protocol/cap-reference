@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 from .machine_model import MachineModelInterface, SituationAssessment, AdjustmentProposal
-from .alo_generator import generate_fake_alo
+from .entity_generator import generate_fake_entity
 
 
 class FakeMachineModel(MachineModelInterface):
@@ -92,11 +92,11 @@ class FakeMachineModel(MachineModelInterface):
             confidence=0.5,
         )
 
-    async def generate_alo_descriptor(
+    async def generate_entity_descriptor(
         self,
         machine_info: dict[str, Any],
     ) -> dict[str, Any]:
-        return generate_fake_alo(machine_info)
+        return generate_fake_entity(machine_info)
 
     async def update_manager(
         self,
@@ -129,7 +129,7 @@ class FakeMachineModel(MachineModelInterface):
 
     async def validate_state(
         self,
-        alo_descriptor: dict[str, Any],
+        entity_descriptor: dict[str, Any],
         machine_state: dict[str, Any],
     ) -> dict[str, Any]:
         anomalies = []
@@ -153,12 +153,12 @@ class FakeMachineModel(MachineModelInterface):
 
     async def simulate_interaction(
         self,
-        self_alo: dict[str, Any],
-        target_alo: dict[str, Any],
+        self_entity: dict[str, Any],
+        target_entity: dict[str, Any],
         task_context: dict[str, Any],
     ) -> dict[str, Any]:
-        self_name = self_alo.get("canonical_name", "機械")
-        target_name = target_alo.get("canonical_name", "対象")
+        self_name = self_entity.get("canonical_name", "機械")
+        target_name = target_entity.get("canonical_name", "対象")
         skill = task_context.get("skill", "作業")
         volume = task_context.get("target_volume_m3", 0)
 
@@ -173,7 +173,7 @@ class FakeMachineModel(MachineModelInterface):
             "interaction_type": skill,
             "predicted_outcome": f"{self_name}が{target_name}で{skill}を実行。目標: {volume}m³",
             "expected_state_changes": [
-                {"alo_id": target_alo.get("alo_id", ""), "property": "volume_m3", "from": "current", "to": f"-{volume}"},
+                {"entity_id": target_entity.get("entity_id", ""), "property": "volume_m3", "from": "current", "to": f"-{volume}"},
             ],
             "step_list": steps,
             "confidence": 0.8,

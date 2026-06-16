@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from cap.v0.core import common_pb2, runtime_pb2, error_pb2
-from cap.v0.core import site_agent_pb2, machine_agent_pb2, events_pb2, alo_pb2, dialogue_pb2
+from cap.v0.core import site_agent_pb2, machine_agent_pb2, events_pb2, entity_pb2, dialogue_pb2
 
 
 def _now_ts() -> Timestamp:
@@ -94,21 +94,21 @@ def wrap_handover_event(
     return runtime_pb2.ConnectRequest(frame=frame)
 
 
-def wrap_alo_state_update(
+def wrap_entity_state_update(
     header: common_pb2.MessageHeader,
-    update: alo_pb2.ALOStateUpdate,
+    update: entity_pb2.EntityStateUpdate,
 ) -> runtime_pb2.ConnectRequest:
-    """Wrap an ALOStateUpdate into a ConnectRequest."""
-    frame = runtime_pb2.CapFrame(header=header, alo_state_update=update)
+    """Wrap an EntityStateUpdate into a ConnectRequest."""
+    frame = runtime_pb2.CapFrame(header=header, entity_state_update=update)
     return runtime_pb2.ConnectRequest(frame=frame)
 
 
-def wrap_alo_interaction(
+def wrap_entity_interaction(
     header: common_pb2.MessageHeader,
-    interaction: alo_pb2.ALOInteraction,
+    interaction: entity_pb2.EntityInteraction,
 ) -> runtime_pb2.ConnectRequest:
-    """Wrap an ALOInteraction into a ConnectRequest."""
-    frame = runtime_pb2.CapFrame(header=header, alo_interaction=interaction)
+    """Wrap an EntityInteraction into a ConnectRequest."""
+    frame = runtime_pb2.CapFrame(header=header, entity_interaction=interaction)
     return runtime_pb2.ConnectRequest(frame=frame)
 
 

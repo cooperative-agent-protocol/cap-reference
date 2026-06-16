@@ -40,8 +40,8 @@ _BODY_FIELDS = {
     # Events
     "reservation_status", "progress_event", "fault_event",
     "handover_event", "safety_event", "audit_event",
-    # ALO
-    "alo_state_update", "alo_interaction",
+    # Entity Descriptor
+    "entity_state_update", "entity_interaction",
     # Dialogue
     "agent_dialogue",
     # Error
@@ -66,7 +66,7 @@ _ALLOW_MATRIX: dict[Role, set[str]] = {
         "capability_manifest", "heartbeat", "work_order_ack",
         "progress_event", "fault_event", "handover_event",
         "safety_event", "audit_event",
-        "alo_state_update", "alo_interaction",
+        "entity_state_update", "entity_interaction",
         "agent_dialogue", "cap_error",
     },
     Role.OBSERVER: set(),  # Read-only; cannot send any CapFrame body

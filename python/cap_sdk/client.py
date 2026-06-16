@@ -14,17 +14,17 @@ from typing import AsyncIterator, Callable, Awaitable, Any
 import grpc
 
 from cap.v0.core import runtime_pb2, runtime_pb2_grpc
-from cap.v0.core import machine_agent_pb2, common_pb2, alo_pb2, dialogue_pb2
+from cap.v0.core import machine_agent_pb2, common_pb2, entity_pb2, dialogue_pb2
 
 from .frame import (
     make_header,
     wrap_capability_manifest,
     wrap_heartbeat,
-    wrap_alo_state_update,
+    wrap_entity_state_update,
     wrap_agent_dialogue,
 )
 from .machine_model import MachineModelInterface
-from .alo_generator import dict_to_alo_descriptor
+from .entity_generator import dict_to_entity_descriptor
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +36,8 @@ class MachineAgentClient:
     and processes incoming CapFrames via a user-provided handler.
 
     Optional model integration:
-      - Populates Heartbeat.alo_state_summary via model.generate_state_description()
-      - Provides send_dialogue() / send_alo_state_update() convenience methods
+      - Populates Heartbeat.entity_state_summary via model.generate_state_description()
+      - Provides send_dialogue() / send_entity_state_update() convenience methods
     """
 
     def __init__(
@@ -77,7 +77,7 @@ class MachineAgentClient:
         self._machine_state_fn = machine_state_fn
         self._outbox: asyncio.Queue[runtime_pb2.ConnectRequest] = asyncio.Queue()
         self._running = False
-        self._cached_alo_summary: str = ""
+        self._cached_entity_summary: str = ""
         # TLS
         self._tls_cert_path = Path(tls_cert_path) if tls_cert_path else None
         self._tls_key_path = Path(tls_key_path) if tls_key_path else None
@@ -106,16 +106,16 @@ class MachineAgentClient:
         async with self._create_channel() as channel:
             stub = runtime_pb2_grpc.CapRuntimeServiceStub(channel)
 
-            # Auto-generate ALO descriptor if model is available and manifest lacks one
-            if self._model and not self._manifest.HasField("alo_descriptor"):
+            # Auto-generate Entity Descriptor descriptor if model is available and manifest lacks one
+            if self._model and not self._manifest.HasField("entity_descriptor"):
                 try:
                     machine_info = self._build_machine_info()
-                    alo_dict = await self._model.generate_alo_descriptor(machine_info)
-                    alo_proto = dict_to_alo_descriptor(alo_dict, owner_agent_id=self._machine_id)
-                    self._manifest.alo_descriptor.CopyFrom(alo_proto)
-                    logger.info("ALO auto-generated: %s (%s)", alo_proto.canonical_name, alo_proto.alo_id)
+                    entity_dict = await self._model.generate_entity_descriptor(machine_info)
+                    entity_proto = dict_to_entity_descriptor(entity_dict, owner_agent_id=self._machine_id)
+                    self._manifest.entity_descriptor.CopyFrom(entity_proto)
+                    logger.info("Entity Descriptor auto-generated: %s (%s)", entity_proto.canonical_name, entity_proto.entity_id)
                 except Exception as e:
-                    logger.warning("ALO auto-generation failed: %s", e)
+                    logger.warning("Entity Descriptor auto-generation failed: %s", e)
 
             # Send manifest first
             header = make_header(
@@ -131,10 +131,10 @@ class MachineAgentClient:
                 try:
                     state = self._machine_state_fn()
                     validation = await self._model.validate_state(
-                        {"alo_id": self._machine_id}, state
+                        {"entity_id": self._machine_id}, state
                     )
                     if not validation.get("valid", True):
-                        logger.warning("ALO state validation: %s", validation.get("anomalies", []))
+                        logger.warning("Entity Descriptor state validation: %s", validation.get("anomalies", []))
                 except Exception as e:
                     logger.debug("Initial validation skipped: %s", e)
 
@@ -165,16 +165,16 @@ class MachineAgentClient:
         )
         await self._outbox.put(wrap_agent_dialogue(header, dialogue))
 
-    async def send_alo_state_update(self, update: alo_pb2.ALOStateUpdate) -> None:
-        """Send an ALOStateUpdate message to the site agent."""
+    async def send_entity_state_update(self, update: entity_pb2.EntityStateUpdate) -> None:
+        """Send an EntityStateUpdate message to the site agent."""
         header = make_header(
             sender_id=self._machine_id,
             receiver_id=self._site_agent_id,
         )
-        await self._outbox.put(wrap_alo_state_update(header, update))
+        await self._outbox.put(wrap_entity_state_update(header, update))
 
     def _build_machine_info(self) -> dict[str, Any]:
-        """Extract machine info from manifest for ALO generation."""
+        """Extract machine info from manifest for Entity Descriptor generation."""
         m = self._manifest
         return {
             "machine_id": m.machine_id,
@@ -216,12 +216,12 @@ class MachineAgentClient:
             if self._model and self._machine_state_fn and hb_count % 3 == 0:
                 try:
                     state = self._machine_state_fn()
-                    self._cached_alo_summary = await self._model.generate_state_description(state)
+                    self._cached_entity_summary = await self._model.generate_state_description(state)
                 except Exception as e:
                     logger.warning("Model state description failed: %s", e)
 
-            if self._cached_alo_summary:
-                hb.alo_state_summary = self._cached_alo_summary
+            if self._cached_entity_summary:
+                hb.entity_state_summary = self._cached_entity_summary
 
             header = make_header(
                 sender_id=self._machine_id,

@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 _QOS_MAP: dict[str, int] = {
     "heartbeat": 0,
     "progress_event": 0,
-    "alo_state_update": 0,
+    "entity_state_update": 0,
     # Everything else defaults to QoS 1
 }
 

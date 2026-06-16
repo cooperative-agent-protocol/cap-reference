@@ -5,7 +5,7 @@ Copyright 2026 CAP Authors
 
 # CAP Reference Implementation
 
-> CAP (Cooperative Agent Protocol) の参照実装 — SDK, エージェント, シミュレータ。Core (Manifest / WorkOrder / Heartbeat / Dialogue / ALO) + Construction Domain Pack v0 を含む。
+> CAP (Cooperative Agent Protocol) の参照実装 — SDK, エージェント, シミュレータ。Core (Manifest / WorkOrder / Heartbeat / Dialogue / Entity Descriptor) + Construction Domain Pack v0 を含む。
 
 ## Python SDK (`python/cap_sdk/`)
 
@@ -23,9 +23,9 @@ CAP プロトコルの完全な Python 実装。Machine Agent と Site Agent の
 | `security/rbac.py` | Role × Message 認可マトリクス（Ch09 §9.3.2 準拠） |
 | `transport/grpc_adapter.py` | gRPC transport adapter（TLS/mTLS 対応） |
 | `transport/mqtt_adapter.py` | MQTT transport adapter（QoS マッピング、LWT、deduplication） |
-| `machine_model.py` | LLM/SLM 統合インターフェース（assess, propose, ALO generate/update/validate/interact） |
+| `machine_model.py` | LLM/SLM 統合インターフェース（assess, propose, Entity Descriptor generate/update/validate/interact） |
 | `machine_model_*.py` | 5 バックエンド: Claude, Gemini, OpenAI, Ollama, Fake (rule-based) |
-| `alo_generator.py` | ALO 記述子生成（Ochiai et al., 2304.04498 Steps 1-10） |
+| `entity_generator.py` | Entity Descriptor 記述子生成（Ochiai et al., 2304.04498 Steps 1-10） |
 
 ### クイックスタート
 
@@ -43,9 +43,9 @@ python templates/minimal_agent/main.py
 
 | エージェント | 内容 |
 |------------|------|
-| `fake_excavator` | Fake 掘削機 — WorkOrder 受理、掘削シミュレーション、ALO Phase 2/3/Step 11、対話 |
-| `fake_dump` | Fake ダンプ — 搬出シミュレーション、ALO 状態報告 |
-| `fake_site` | Fake Site Agent — WorkOrder dispatch、対話承認、ALO World Model 管理 |
+| `fake_excavator` | Fake 掘削機 — WorkOrder 受理、掘削シミュレーション、Entity Descriptor Phase 2/3/Step 11、対話 |
+| `fake_dump` | Fake ダンプ — 搬出シミュレーション、Entity Descriptor 状態報告 |
+| `fake_site` | Fake Site Agent — WorkOrder dispatch、対話承認、Entity Descriptor World Model 管理 |
 | `sim_excavator` | シミュレータ連携掘削機 — world state から実値取得 |
 | `sim_dump` | シミュレータ連携ダンプ — 経路追従、積載状態 |
 | `sim_site` | シミュレータ連携 Site Agent — LLM planner + TaskGraph compiler |
