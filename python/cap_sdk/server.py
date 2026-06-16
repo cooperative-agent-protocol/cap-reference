@@ -29,15 +29,17 @@ DEFAULT_HEARTBEAT_TIMEOUT = 15.0
 class ConnectedMachine:
     """Tracks state of a connected machine agent."""
 
-    def __init__(self, machine_id: str):
+    def __init__(self, machine_id: str, heartbeat_timeout: float = DEFAULT_HEARTBEAT_TIMEOUT):
         self.machine_id = machine_id
         self.manifest: machine_agent_pb2.CapabilityManifest | None = None
         self.last_heartbeat: float = time.monotonic()
         self.outbox: asyncio.Queue[runtime_pb2.ConnectResponse] = asyncio.Queue()
+        self.heartbeat_timeout = heartbeat_timeout
+        self.timed_out_flagged = False  # set once the reaper has reported this machine
 
     @property
     def is_alive(self) -> bool:
-        return (time.monotonic() - self.last_heartbeat) < DEFAULT_HEARTBEAT_TIMEOUT
+        return (time.monotonic() - self.last_heartbeat) < self.heartbeat_timeout
 
 
 class CapRuntimeServicer(runtime_pb2_grpc.CapRuntimeServiceServicer):
@@ -58,12 +60,21 @@ class CapRuntimeServicer(runtime_pb2_grpc.CapRuntimeServiceServicer):
         *,
         enforce_rbac: bool = False,
         site_agent_id: str = "site-agent-01",
+        enforce_manifest_first: bool = True,
+        heartbeat_timeout: float = DEFAULT_HEARTBEAT_TIMEOUT,
+        reaper_interval: float = 5.0,
+        on_machine_timeout: Callable[[str], Awaitable[None]] | None = None,
     ):
         self._on_frame = on_frame
         self._machines: dict[str, ConnectedMachine] = {}
         self._enforce_rbac = enforce_rbac
         self._rbac = RBACEnforcer() if enforce_rbac else None
         self._site_agent_id = site_agent_id
+        self._enforce_manifest_first = enforce_manifest_first
+        self._heartbeat_timeout = heartbeat_timeout
+        self._reaper_interval = reaper_interval
+        self._on_machine_timeout = on_machine_timeout
+        self._reaper_task: asyncio.Task | None = None
 
     @property
     def machines(self) -> dict[str, ConnectedMachine]:
@@ -118,10 +129,30 @@ class CapRuntimeServicer(runtime_pb2_grpc.CapRuntimeServiceServicer):
                 # Register on first message
                 if machine_id is None:
                     machine_id = sender
-                    self._machines[machine_id] = ConnectedMachine(machine_id)
+                    self._machines[machine_id] = ConnectedMachine(machine_id, self._heartbeat_timeout)
                     logger.info("Machine connected: %s", machine_id)
 
                 machine = self._machines[machine_id]
+
+                # Manifest-first enforcement (Ch10 §10.2.1): the first frame in a
+                # CAP stream MUST be a CapabilityManifest. Reject any earlier frame
+                # with CapError(2006, UNEXPECTED_MESSAGE) and close the stream.
+                if (
+                    self._enforce_manifest_first
+                    and machine.manifest is None
+                    and not frame.HasField("capability_manifest")
+                ):
+                    logger.warning(
+                        "Machine %s sent %s before CapabilityManifest",
+                        machine_id, frame.WhichOneof("body"),
+                    )
+                    yield self._make_error_response(
+                        2006,
+                        "first message in a CAP stream must be CapabilityManifest",
+                        frame.header.message_id,
+                        severity=common_pb2.FAULT_SEVERITY_CRITICAL,
+                    )
+                    return  # close stream per Ch10 §10.2.1
 
                 # Track manifest + mTLS CN validation (Ch09 §9.2.1)
                 if frame.HasField("capability_manifest"):
@@ -186,6 +217,43 @@ class CapRuntimeServicer(runtime_pb2_grpc.CapRuntimeServiceServicer):
         if machine is None:
             raise ValueError(f"Machine {machine_id} not connected")
         await machine.outbox.put(response)
+
+    def start_reaper(self) -> None:
+        """Start the background heartbeat-timeout reaper.
+
+        Every ``reaper_interval`` seconds the reaper detects machines whose last
+        heartbeat is older than ``heartbeat_timeout`` (Ch10 §10.2.1: detect
+        heartbeat timeout and mark the machine disconnected) and reports each one
+        exactly once via the ``on_machine_timeout`` callback. It does not delete
+        the registry entry -- the Connect coroutine owns the stream lifecycle --
+        it surfaces the timeout so the Site Agent can react (e.g., release the
+        timed-out machine's reservations). Idempotent; safe to call once at
+        startup.
+        """
+        if self._reaper_task is None or self._reaper_task.done():
+            self._reaper_task = asyncio.create_task(self._reaper_loop())
+
+    async def stop_reaper(self) -> None:
+        """Stop the background reaper, if running."""
+        if self._reaper_task is not None:
+            self._reaper_task.cancel()
+            try:
+                await self._reaper_task
+            except asyncio.CancelledError:
+                pass
+            self._reaper_task = None
+
+    async def _reaper_loop(self) -> None:
+        while True:
+            await asyncio.sleep(self._reaper_interval)
+            for machine in list(self._machines.values()):
+                if not machine.is_alive and not machine.timed_out_flagged:
+                    machine.timed_out_flagged = True
+                    logger.warning("Heartbeat timeout: machine %s", machine.machine_id)
+                    if self._on_machine_timeout is not None:
+                        await self._on_machine_timeout(machine.machine_id)
+                elif machine.is_alive and machine.timed_out_flagged:
+                    machine.timed_out_flagged = False  # re-armed after a fresh heartbeat
 
 
 async def serve(servicer: CapRuntimeServicer, port: int = 50051) -> grpc.aio.Server:
