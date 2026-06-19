@@ -26,7 +26,7 @@ Copyright 2026 CAP Authors
 ### Pending
 - C++ SDK v0.1 minimum viable: MachineAgentClient + validator + HAL ABC
   + CMake install + Conan recipe + ABI guard (Autonomous backlog A10).
-- `cap-reference/examples/quickstart/` with cap-platform-independent
+- `cap-reference/examples/quickstart/` with platform-independent
   docker-compose and a 60-LoC wrapper around the bundled fake LLM.
 
 ## [0.1.0] — Unreleased

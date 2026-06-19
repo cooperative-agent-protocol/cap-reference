@@ -5,7 +5,7 @@ Copyright 2026 CAP Authors
 
 # CAP Quickstart
 
-A self-contained, **cap-platform-independent** demo of the Cooperative
+A self-contained, **platform-independent** demo of the Cooperative
 Agent Protocol with the Construction Domain Pack. Mounts only:
 
 - `cap-spec/gen/python` — generated proto bindings

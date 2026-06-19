@@ -8,7 +8,7 @@
 #   - two fake construction Machine Agents (excavator + dump truck)
 #   - an MQTT broker (for the MQTT transport demo)
 #
-# This compose file deliberately has NO dependency on cap-platform — it
+# This compose file deliberately has NO external platform dependency — it
 # mounts only cap-spec/gen (generated proto) and cap-reference/python
 # (the reference SDK). It demonstrates a self-contained Construction
 # Domain Pack deployment.
