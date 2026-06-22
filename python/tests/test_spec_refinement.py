@@ -20,6 +20,7 @@ verified semantics, which a TLC proof over an abstract model does not.
 
 from __future__ import annotations
 
+import copy
 import random
 
 from cap.v0.core import events_pb2, site_agent_pb2
@@ -157,3 +158,64 @@ def test_deny_regime_refinement():
         reservation_id="b", resource_id="LP-1", holder_id="m2"))
     assert d.state == _STATE.RESERVATION_STATE_DENIED
     assert real.holder("LP-1") == "m1"  # exclusivity upheld
+
+
+def _check_invariants(real, abs, resources: list[str], seen_epoch: dict) -> None:
+    """At every reached state: holder agreement, monotonic fencing epoch, fence validity."""
+    for res in resources:
+        assert real.holder(res) == abs.holder.get(res), (
+            f"holder diverged res={res}: real={real.holder(res)} abstract={abs.holder.get(res)}")
+        e = real.current_epoch(res)
+        assert e >= seen_epoch.get(res, 0), f"epoch regressed res={res}"
+        seen_epoch[res] = e
+        if e > 0:
+            assert real.validate_fence(res, e)
+            assert not real.validate_fence(res, e - 1)  # only the current epoch validates
+
+
+def _enumerate(real, abs, live: set, rid_ctr: int, depth: int, max_depth: int,
+               machines: list[str], resources: list[str], seen_epoch: dict, stats: dict) -> None:
+    """DFS over every reachable operation sequence (request/release) up to ``max_depth``,
+    branching by deep-copy so each path is explored independently. At every node the shipped
+    ReservationManager is asserted to agree with the abstract TLA+ port (REQUEST/RELEASE result
+    + invariants). No randomness: this is exhaustive within the bound."""
+    if depth >= max_depth or stats["n"] >= stats["cap"]:
+        return
+    ops = [("request", res, m) for res in resources for m in machines]
+    ops += [("release", rid) for rid in sorted(live)]
+    for op in ops:
+        if stats["n"] >= stats["cap"]:
+            return
+        r2, a2 = copy.deepcopy(real), copy.deepcopy(abs)
+        live2, se2, rc2 = set(live), dict(seen_epoch), rid_ctr
+        if op[0] == "request":
+            rc2 += 1
+            rid = f"r{rc2}"
+            got = _status_tuple(r2.request(site_agent_pb2.ReservationRequest(
+                reservation_id=rid, resource_id=op[1], holder_id=op[2], priority=0)))
+            exp = a2.request(rid, op[1], op[2], 0)
+            assert got == exp, f"REQUEST diverged: real={got} abstract={exp}"
+            live2.add(rid)
+        else:
+            got_rs = r2.release(op[1])
+            exp = a2.release(op[1])
+            got = _status_tuple(got_rs) if got_rs is not None else None
+            assert got == exp, f"RELEASE diverged: real={got} abstract={exp}"
+        _check_invariants(r2, a2, resources, se2)
+        stats["n"] += 1
+        _enumerate(r2, a2, live2, rc2, depth + 1, max_depth, machines, resources, se2, stats)
+
+
+def test_exhaustive_small_traces():
+    """Exhaustive (not sampled) refinement: enumerate EVERY reachable operation sequence up to a
+    bounded length over a small machine/resource configuration, asserting the shipped
+    ReservationManager agrees with the TLA+ transition-relation port at every step (holder, grant
+    epoch, status, fencing). This complements the 200 randomized traces with full coverage of the
+    small-instance state space, and the runtime monitor of the reference consumer with an
+    exhaustive (rather than observed) check of the arbiter against the specification."""
+    machines, resources = ["m1", "m2"], ["LP-1"]
+    stats = {"n": 0, "cap": 200_000}
+    _enumerate(ReservationManager(queued=True), AbstractReservation(), set(), 0, 0,
+               6, machines, resources, {}, stats)
+    assert stats["n"] > 200, f"expected a non-trivial exhaustive enumeration, got {stats['n']}"
+    assert stats["n"] < stats["cap"], "enumeration hit the safety cap; the bound is not exhaustive"
