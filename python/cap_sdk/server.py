@@ -119,6 +119,10 @@ class CapRuntimeServicer(runtime_pb2_grpc.CapRuntimeServiceServicer):
         context: grpc.aio.ServicerContext,
     ):
         machine_id: str | None = None
+        # This stream's own registration. A machine that reconnects while an older stream of it is still open (a link
+        # that broke on its side first) replaces that registration; the older stream keeps to its own - it neither
+        # takes the newer stream's queued messages nor, when it ends, removes the newer registration.
+        machine: ConnectedMachine | None = None
         client_cn = self._extract_client_cn(context)
 
         try:
@@ -127,12 +131,11 @@ class CapRuntimeServicer(runtime_pb2_grpc.CapRuntimeServiceServicer):
                 sender = frame.header.sender_id
 
                 # Register on first message
-                if machine_id is None:
+                if machine is None:
                     machine_id = sender
-                    self._machines[machine_id] = ConnectedMachine(machine_id, self._heartbeat_timeout)
+                    machine = ConnectedMachine(machine_id, self._heartbeat_timeout)
+                    self._machines[machine_id] = machine
                     logger.info("Machine connected: %s", machine_id)
-
-                machine = self._machines[machine_id]
 
                 # Manifest-first enforcement (Ch10 §10.2.1): the first frame in a
                 # CAP stream MUST be a CapabilityManifest. Reject any earlier frame
@@ -205,7 +208,7 @@ class CapRuntimeServicer(runtime_pb2_grpc.CapRuntimeServiceServicer):
                     yield machine.outbox.get_nowait()
 
         finally:
-            if machine_id and machine_id in self._machines:
+            if machine_id is not None and self._machines.get(machine_id) is machine:
                 del self._machines[machine_id]
                 logger.info("Machine disconnected: %s", machine_id)
 
